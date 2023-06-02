@@ -325,11 +325,11 @@ class dm extends EventEmitter {
             // Add a direct reference to the control in this control
             this[name] = control;
 
+            // Initialise control before setting data initial data
+            control.Init();
+
             // Set control child data
             control.Set(data);
-
-            // Initialise control
-            control.Init();
 
             // Emit the [controlName] event on this (newly created control's parent)
             this.emit(name, control);
