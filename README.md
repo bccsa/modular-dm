@@ -80,3 +80,8 @@ controls.Set({
     }
 });
 ```
+
+## Event subscription
+# control.on()
+
+Explain options { immeditate: true }.

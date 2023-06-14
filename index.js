@@ -92,6 +92,21 @@ class dm extends EventEmitter {
         }
     }
 
+    /**
+     * Adds the listener function to the end of the listeners array for the event named eventName. No checks are made to see if the listener has already been added. Multiple calls passing the same combination of eventNameand listener will result in the listener being added, and called, multiple times.
+     * @param {string} eventName 
+     * @param {*} listener - callback function
+     * @param {*} options - Optional - Only for class property change events: Optional: { immediate: true } - Calls the 'listener' callback function immediately on subscription with the current value of the property (if existing).
+     */
+    on(eventName, listener, options = {}) {
+        super.on(eventName, listener);
+
+        // Call the immediate callback
+        if (options && options.immediate && this[eventName] != undefined) {
+            listener(this[eventName]);
+        }
+    }
+
     // -------------------------------------
     // Override Functions
     // -------------------------------------
@@ -325,11 +340,11 @@ class dm extends EventEmitter {
             // Add a direct reference to the control in this control
             this[name] = control;
 
-            // Initialise control before setting data initial data
-            control.Init();
-
             // Set control child data
             control.Set(data);
+
+            // Initialise control after setting data initial data
+            control.Init();
 
             // Emit the [controlName] event on this (newly created control's parent)
             this.emit(name, control);
