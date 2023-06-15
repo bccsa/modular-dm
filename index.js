@@ -63,6 +63,10 @@ class dm extends EventEmitter {
          * @type {string}
          */
         this._path = "";
+        /**
+         * Used internally to bypass updates notifications through the 'data' event when properties are set by Set();
+         */
+        this._bypassNotify = false;
     }
 
     // -------------------------------------
@@ -145,11 +149,15 @@ class dm extends EventEmitter {
                             typeof this[k] == "boolean" ||
                             Array.isArray(this[k]))) {
                         if (data[k] != null && data[k] != undefined) {
+                            this._bypassNotify = true;
                             this[k] = data[k];
+                            this._bypassNotify = false;
                         }
                         else {
                             // Prevent properties to be set to undefined or null
+                            this._bypassNotify = true;
                             this[k] = `${data[k]}`;
+                            this._bypassNotify = false;
                         }
                     }
                     // Update child controls. If a child control shares the name of a settable property, the child control will not receive data.
@@ -327,7 +335,9 @@ class dm extends EventEmitter {
                                 // Only notify changes
                                 this._properties[k] = val;
                                 this.emit(k, val);
-                                this.NotifyProperty(k);
+                                if (!this._bypassNotify) {
+                                    this.NotifyProperty(k);
+                                }
                             }
                         }
                     });
