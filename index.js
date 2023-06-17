@@ -224,7 +224,7 @@ class dm extends EventEmitter {
             c.emit('remove', c);
 
             // Unregister from all events
-            c.clearEvents();
+            c.removeAllListeners();
         }
     }
 
