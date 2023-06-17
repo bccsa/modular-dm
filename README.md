@@ -85,3 +85,6 @@ controls.Set({
 # control.on()
 
 Explain options { immeditate: true }.
+
+# To do
+* Document SetAccess()

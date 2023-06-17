@@ -49,6 +49,11 @@ class dm extends EventEmitter {
          */
         this._properties = {};
         /**
+         * List of property access control settings.
+         * @type {object}
+         */
+        this._acl = {};
+        /**
          * Reference to the parent of this control. This should not be set in code.
          * @type {object}
          */
@@ -148,16 +153,18 @@ class dm extends EventEmitter {
                             typeof this[k] == "string" ||
                             typeof this[k] == "boolean" ||
                             Array.isArray(this[k]))) {
-                        if (data[k] != null && data[k] != undefined) {
-                            this._bypassNotify = true;
-                            this[k] = data[k];
-                            this._bypassNotify = false;
-                        }
-                        else {
-                            // Prevent properties to be set to undefined or null
-                            this._bypassNotify = true;
-                            this[k] = `${data[k]}`;
-                            this._bypassNotify = false;
+                        if (!this._acl[k] || !this._acl[k].Set || this._acl[k].Set == 'public') {
+                            if (data[k] != null && data[k] != undefined) {
+                                this._bypassNotify = true;
+                                this[k] = data[k];
+                                this._bypassNotify = false;
+                            }
+                            else {
+                                // Prevent properties to be set to undefined or null
+                                this._bypassNotify = true;
+                                this[k] = `${data[k]}`;
+                                this._bypassNotify = false;
+                            }
                         }
                     }
                     // Update child controls. If a child control shares the name of a settable property, the child control will not receive data.
@@ -183,8 +190,10 @@ class dm extends EventEmitter {
 
         // Get own properties
         Object.getOwnPropertyNames(this._properties).forEach((k) => {
-            if (options.sparse && this._properties[k] != '' || !options.sparse) {
-                data[k] = this._properties[k];
+            if (!this._acl[k] || !this._acl[k].Get || this._acl[k] == 'public') {
+                if (options.sparse && this._properties[k] != '' || !options.sparse) {
+                    data[k] = this._properties[k];
+                }
             }
         });
 
@@ -227,13 +236,16 @@ class dm extends EventEmitter {
         let data = {};
         if (Array.isArray(propertyNames)) {
             propertyNames.forEach((p) => {
-                if (this[p] != undefined) {
-                    data[p] = this[p];
+                if (!this._acl[p] || !this._acl[p].Get || this._acl[p].Get == 'public') {
+                    if (this[p] != undefined) {
+                        data[p] = this[p];
+                    }
                 }
             });
         } else {
             if (this[propertyNames] != undefined) {
-                data[propertyNames] = this[propertyNames];
+                if (!this._acl[propertyNames] || !this._acl[propertyNames].Get || this._acl[propertyNames].Get == 'public')
+                    data[propertyNames] = this[propertyNames];
             }
         }
 
@@ -328,15 +340,19 @@ class dm extends EventEmitter {
                     // Create getter and setter
                     Object.defineProperty(control, k, {
                         get: function () {
-                            return this._properties[k];
+                            if (!this._acl[k] || !this._acl[k].getter || this._acl[k].getter == 'public') {
+                                return this._properties[k];
+                            }
                         },
                         set: function (val) {
+                            // Only notify changes
                             if (this._properties[k] != val) {
-                                // Only notify changes
-                                this._properties[k] = val;
-                                this.emit(k, val);
-                                if (!this._bypassNotify) {
-                                    this.NotifyProperty(k);
+                                if (!this._acl[k] || !this._acl[k].setter || this._acl[k].setter == 'public') {
+                                    this._properties[k] = val;
+                                    this.emit(k, val);
+                                    if (!this._bypassNotify) {
+                                        this.NotifyProperty(k);
+                                    }
                                 }
                             }
                         }
@@ -358,6 +374,17 @@ class dm extends EventEmitter {
 
             // Emit the [controlName] event on this (newly created control's parent)
             this.emit(name, control);
+        }
+    }
+
+    /**
+     * Set an access control list for a property. Only applies to properties with automatically generated getters and setters (number, string, bool and Array types not prefixed with '_')
+     * @param {*} propertyName - Property name
+     * @param {*} ACL - Access control list { Set: 'public'(default)/'none', Get: 'public'(default)/'none', setter: 'public'(default)/'none', getter: 'public'(default)/'none' } where 'Set' refers to data set through control.Set(), 'Get' refers to data retreived through control.Get() or through automatic notification, 'setter' refers to setting the property through control.property = value and 'getter' refers to getting the property value through value = control.property. 'private' = only accessible by the control itself, 'public' = accessible by any other controls / external code, none = not accessible at all.
+     */
+    SetAccess(propertyName, ACL) {
+        if (this[propertyName] != undefined) {
+            this._acl[propertyName] = ACL;
         }
     }
 }
