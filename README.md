@@ -88,3 +88,5 @@ Explain options { immeditate: true }.
 
 # To do
 * Document SetAccess()
+* Document event subscription (on & once) options
+* Unsubscribe from caller 'remove' event on event unsubscription
