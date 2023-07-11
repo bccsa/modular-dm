@@ -123,6 +123,8 @@ class dm extends EventEmitter {
                 });
             }
         }
+
+        return listener;
     }
 
     /**
@@ -142,6 +144,8 @@ class dm extends EventEmitter {
                 });
             }
         }
+
+        return listener;
     }
 
     // -------------------------------------
