@@ -189,13 +189,11 @@ class dm extends EventEmitter {
                             if (data[k] != null && data[k] != undefined) {
                                 this._bypassNotify = true;
                                 this[k] = data[k];
-                                this._bypassNotify = false;
                             }
                             else {
                                 // Prevent properties to be set to undefined or null
                                 this._bypassNotify = true;
                                 this[k] = `${data[k]}`;
-                                this._bypassNotify = false;
                             }
                         }
                     }
@@ -381,10 +379,12 @@ class dm extends EventEmitter {
                             if (this._properties[k] != val) {
                                 if (!this._acl[k] || !this._acl[k].setter || this._acl[k].setter == 'public') {
                                     this._properties[k] = val;
-                                    this.emit(k, val);
                                     if (!this._bypassNotify) {
                                         this.NotifyProperty(k);
+                                    } else {
+                                        this._bypassNotify = false;
                                     }
+                                    this.emit(k, val);
                                 }
                             }
                         }
