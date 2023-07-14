@@ -247,11 +247,12 @@ class dm extends EventEmitter {
     RemoveChild(control) {
         if (this._controls[control] != undefined) {
             let c = this._controls[control];
-            delete this._controls[control];
-            delete this[control];
 
             // Emit remove event
             c.emit('remove', c);
+
+            delete this._controls[control];
+            delete this[control];
 
             // Unregister from all events
             c.removeAllListeners();
@@ -387,6 +388,7 @@ class dm extends EventEmitter {
                                     this.emit(k, val);
                                 }
                             }
+                            this._bypassNotify = false;
                         }
                     });
                 }
