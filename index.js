@@ -445,6 +445,42 @@ class dmTopLevelContainer extends dm {
     }
 }
 
+/* #region  multiple extendable classes */
+
+/**
+ * _uiClasses is a function added to modular-ui, to be able to extend a class with more that one class
+ * !!! Important to note, that if both super classes contains the same porperty/ function (porperty/ function name, will be overwriten by the last class loaded containing that property/ function)
+ * Link to referance used: https://stackoverflow.com/questions/29879267/es6-class-multiple-inheritance
+ * @param {Object} baseClass - Base class to be extended with sub classes 
+ * @param  {...any} mixins - Classes to be added to the base class, (comma separated eg. uiClasses(BaseClass, ClassA, ClassB, ClassC))
+ * @returns Base class 
+ */
+function Classes (baseClass, ...mixins) {
+    class base extends baseClass {
+        constructor (...args) {
+            super(...args);
+            mixins.forEach((mixin) => {
+                copyProps(this,(new mixin));
+            });
+        }
+    }
+    let copyProps = (target, source) => {  // this function copies all properties and symbols, filtering out some special ones
+        Object.getOwnPropertyNames(source)
+                .concat(Object.getOwnPropertySymbols(source))
+                .forEach((prop) => {
+                    if (!prop.match(/^(?:constructor|prototype|arguments|caller|name|bind|call|apply|toString|length)$/))
+                    Object.defineProperty(target, prop, Object.getOwnPropertyDescriptor(source, prop));
+                })
+    }
+    mixins.forEach((mixin) => { // outside contructor() to allow aggregation(A,B,C).staticFunction() to be called etc.
+        copyProps(base.prototype, mixin.prototype);
+        copyProps(base, mixin);
+    });
+    return base;
+}
+/* #endregion */
+
 // Export class
 module.exports.dm = dm;
 module.exports.dmTopLevelContainer = dmTopLevelContainer;
+module.exports.Classes = Classes;
