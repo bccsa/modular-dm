@@ -4,7 +4,7 @@
 // Copyright BCC South Africa
 // =====================================
 
-const EventEmitter = require('events');
+const EventEmitter = require("events");
 
 /**
  * modular-dm base class (data model base class)
@@ -72,6 +72,10 @@ class dm extends EventEmitter {
          * Used internally to bypass updates notifications through the 'data' event when properties are set by Set();
          */
         this._bypassNotify = false;
+        /**
+         * List of meta data properties. This metadata will be sent with the 'data' event.
+         */
+        this._meta = {};
     }
 
     // -------------------------------------
@@ -80,30 +84,30 @@ class dm extends EventEmitter {
 
     /**
      * Emit an event
-     * @param {string} eventName 
+     * @param {string} eventName
      * @param {*} data - Data to be emitted
      * @param {string} scope - [Optional] local: Only emit on this control; bubble: Emit on this control and all parent controls; top: Only emit on top level parent control; local_top: Emit on both this control and top level parent control; (Default: local)
      */
-    emit(eventName, data, scope = 'local') {
+    emit(eventName, data, scope = "local", meta) {
         // local emit
-        if (scope == 'local' || scope == 'local_top' || scope == 'bubble') {
-            super.emit(eventName, data);
+        if (scope == "local" || scope == "local_top" || scope == "bubble") {
+            super.emit(eventName, data, meta);
         }
 
         // parent control emit
-        if (scope == 'bubble' && this._parent) {
-            this._parent.emit(eventName, data, scope);
+        if (scope == "bubble" && this._parent) {
+            this._parent.emit(eventName, data, scope, meta);
         }
 
         // top level control emit
-        if (scope == 'top' || scope == 'local_top') {
-            this._topLevelParent.emit(eventName, data);
+        if (scope == "top" || scope == "local_top") {
+            this._topLevelParent.emit(eventName, data, meta);
         }
     }
 
     /**
      * Adds the listener function to the end of the listeners array for the event named eventName. No checks are made to see if the listener has already been added. Multiple calls passing the same combination of eventNameand listener will result in the listener being added, and called, multiple times.
-     * @param {string} eventName 
+     * @param {string} eventName
      * @param {*} listener - callback function
      * @param {*} options - Optional: { immediate: true, caller: [caller control] } - immediate: true: (only for class property change events) Calls the 'listener' callback function immediately on subscription with the current value of the property (if existing); caller: [caller control]: Subscribes to the 'remove' event of the caller, and automatically unsubscribes from the event when the caller is removed. This helps to prevent memory uncleared references to the removed control's callback functions.
      */
@@ -115,10 +119,10 @@ class dm extends EventEmitter {
             if (options.immediate && this[eventName] != undefined) {
                 listener(this[eventName]);
             }
-            
+
             // Automatically unsubscribe from event if the caller is removed
             if (options.caller && options.caller.on) {
-                options.caller.on('remove', () => {
+                options.caller.on("remove", () => {
                     this.off(eventName, listener);
                 });
             }
@@ -129,7 +133,7 @@ class dm extends EventEmitter {
 
     /**
      * Adds a one-timelistener function for the event named eventName. The next time eventName is triggered, this listener is removed and then invoked.
-     * @param {string} eventName 
+     * @param {string} eventName
      * @param {*} listener - callback function
      * @param {*} options - Optional: { caller: [caller control] } - caller: [caller control]: Subscribes to the 'remove' event of the caller, and automatically unsubscribes from the event when the caller is removed. This helps to prevent memory uncleared references to the removed control's callback functions.
      */
@@ -139,7 +143,7 @@ class dm extends EventEmitter {
         if (options) {
             // Automatically unsubscribe from event if the caller is removed
             if (options.caller && options.caller.on) {
-                options.caller.on('remove', () => {
+                options.caller.on("remove", () => {
                     this.off(eventName, listener);
                 });
             }
@@ -155,9 +159,7 @@ class dm extends EventEmitter {
     /**
      * Overridable method that is called directly after control creation. The [controlName] event is emitted on the control's parent directly after Init() is called. The Init() method can be overridden to add initialisation logic to extentions of the modular-dm base class.
      */
-    Init() {
-
-    }
+    Init() {}
 
     // -------------------------------------
     // Core functions
@@ -165,10 +167,10 @@ class dm extends EventEmitter {
 
     /**
      * Sets a javascript data object, and updates values, creates and removes controls as applicable.
-     * @param {object} data 
+     * @param {object} data
      */
     Set(data) {
-        if (data && typeof data == 'object') {
+        if (data && typeof data == "object") {
             Object.keys(data).forEach((k) => {
                 // Check for remove command
                 if (k == "remove") {
@@ -184,13 +186,17 @@ class dm extends EventEmitter {
                         (typeof this[k] == "number" ||
                             typeof this[k] == "string" ||
                             typeof this[k] == "boolean" ||
-                            Array.isArray(this[k]))) {
-                        if (!this._acl[k] || !this._acl[k].Set || this._acl[k].Set == 'public') {
+                            Array.isArray(this[k]))
+                    ) {
+                        if (
+                            !this._acl[k] ||
+                            !this._acl[k].Set ||
+                            this._acl[k].Set == "public"
+                        ) {
                             if (data[k] != null && data[k] != undefined) {
                                 this._bypassNotify = true;
                                 this[k] = data[k];
-                            }
-                            else {
+                            } else {
                                 // Prevent properties to be set to undefined or null
                                 this._bypassNotify = true;
                                 this[k] = `${data[k]}`;
@@ -202,7 +208,10 @@ class dm extends EventEmitter {
                         this._controls[k].Set(data[k]);
                     }
                     // Create a new child control if the passed data has controlType set. If this control is not ready yet (Init did not run yet),
-                    else if (data[k] != null && data[k].controlType != undefined) {
+                    else if (
+                        data[k] != null &&
+                        data[k].controlType != undefined
+                    ) {
                         this._createControl(data[k], k);
                     }
                 }
@@ -213,15 +222,22 @@ class dm extends EventEmitter {
     /**
      * Get control data as an javascript object
      * @param {Object} options - { sparse: false/true (true [default]: Do not return empty properties; false: Return empty properties;) }
-     * @returns 
+     * @returns
      */
     Get(options = { sparse: true }) {
         var data = {};
 
         // Get own properties
         Object.getOwnPropertyNames(this._properties).forEach((k) => {
-            if (!this._acl[k] || !this._acl[k].Get || this._acl[k] == 'public') {
-                if (options.sparse && this._properties[k] != '' || !options.sparse) {
+            if (
+                !this._acl[k] ||
+                !this._acl[k].Get ||
+                this._acl[k] == "public"
+            ) {
+                if (
+                    (options.sparse && this._properties[k] != "") ||
+                    !options.sparse
+                ) {
                     data[k] = this._properties[k];
                 }
             }
@@ -249,7 +265,7 @@ class dm extends EventEmitter {
             let c = this._controls[control];
 
             // Emit remove event
-            c.emit('remove', c);
+            c.emit("remove", c);
 
             delete this._controls[control];
             delete this[control];
@@ -265,45 +281,60 @@ class dm extends EventEmitter {
      */
     NotifyProperty(propertyNames) {
         let data = {};
+        let meta = {};
         if (Array.isArray(propertyNames)) {
             propertyNames.forEach((p) => {
-                if (!this._acl[p] || !this._acl[p].Get || this._acl[p].Get == 'public') {
+                if (
+                    !this._acl[p] ||
+                    !this._acl[p].Get ||
+                    this._acl[p].Get == "public"
+                ) {
                     if (this[p] != undefined) {
                         data[p] = this[p];
+                        meta[p] = this._meta[p];
                     }
                 }
             });
         } else {
             if (this[propertyNames] != undefined) {
-                if (!this._acl[propertyNames] || !this._acl[propertyNames].Get || this._acl[propertyNames].Get == 'public')
+                if (
+                    !this._acl[propertyNames] ||
+                    !this._acl[propertyNames].Get ||
+                    this._acl[propertyNames].Get == "public"
+                ) {
                     data[propertyNames] = this[propertyNames];
+                    meta[propertyNames] = this._meta[propertyNames];
+                }
             }
         }
 
-        this._notify(data);
+        this._notify(data, meta);
     }
 
     /**
      * Log events to an event log (exposed as 'log' event on the top level parent)
-     * @param {String} message 
+     * @param {String} message
      */
     Log(message) {
-        this._topLevelParent.emit('log', `${this.constructor.name} | ${this._controlName}: ${message}`);
+        this._topLevelParent.emit(
+            "log",
+            `${this.constructor.name} | ${this._controlName}: ${message}`
+        );
     }
 
     // notifies parent of data change, and triggers onChange event.
-    _notify(data) {
+    _notify(data, meta) {
         if (this._parent != undefined) {
             let n = {
                 [this._controlName]: data,
             };
 
             if (!this.hideData) {
-                this._parent._notify(n);
+                this._parent._notify(n, meta);
             }
         }
 
-        this.emit("data", data);
+        this.emit("data", data, undefined, meta);
     }
 
     /**
@@ -321,13 +352,12 @@ class dm extends EventEmitter {
                 // proceed only if the name is a single word string
                 try {
                     let p = this._path;
-                    if (!this._path) p = '';
+                    if (!this._path) p = "";
                     let c = require(`${p}/${name}`);
                     if (c) {
                         tp._cls_[name] = c;
                     }
-                }
-                catch {
+                } catch {
                     return undefined;
                 }
             } else {
@@ -371,14 +401,22 @@ class dm extends EventEmitter {
                     // Create getter and setter
                     Object.defineProperty(control, k, {
                         get: function () {
-                            if (!this._acl[k] || !this._acl[k].getter || this._acl[k].getter == 'public') {
+                            if (
+                                !this._acl[k] ||
+                                !this._acl[k].getter ||
+                                this._acl[k].getter == "public"
+                            ) {
                                 return this._properties[k];
                             }
                         },
                         set: function (val) {
                             // Only notify changes
                             if (this._properties[k] != val) {
-                                if (!this._acl[k] || !this._acl[k].setter || this._acl[k].setter == 'public') {
+                                if (
+                                    !this._acl[k] ||
+                                    !this._acl[k].setter ||
+                                    this._acl[k].setter == "public"
+                                ) {
                                     this._properties[k] = val;
                                     if (!this._bypassNotify) {
                                         this.NotifyProperty(k);
@@ -389,7 +427,7 @@ class dm extends EventEmitter {
                                 }
                             }
                             this._bypassNotify = false;
-                        }
+                        },
                     });
                 }
             });
@@ -410,7 +448,7 @@ class dm extends EventEmitter {
             this.emit(name, control);
 
             // Emit that a new control has been created
-            this.emit('newChildControl', control);
+            this.emit("newChildControl", control);
         }
     }
 
@@ -422,6 +460,17 @@ class dm extends EventEmitter {
     SetAccess(propertyName, ACL) {
         if (this[propertyName] != undefined) {
             this._acl[propertyName] = ACL;
+        }
+    }
+
+    /**
+     * Set a list of meta data properties. This metadata will be sent with the 'data' event.
+     * @param {*} propertyName - Property name
+     * @param {*} META - Meta data to be set, this can be any object structure, the way the you want to receive the data with the data event
+     */
+    SetMeta(propertyName, META) {
+        if (this[propertyName] != undefined) {
+            this._meta[propertyName] = META;
         }
     }
 }
@@ -437,7 +486,7 @@ class dmTopLevelContainer extends dm {
     constructor(path) {
         super();
         this._path = path;
-        this._controlName = 'topLevelContainer';
+        this._controlName = "topLevelContainer";
         this._topLevelParent = this;
 
         // dynamically loaded class cache
@@ -451,28 +500,38 @@ class dmTopLevelContainer extends dm {
  * _uiClasses is a function added to modular-ui, to be able to extend a class with more that one class
  * !!! Important to note, that if both super classes contains the same porperty/ function (porperty/ function name, will be overwriten by the last class loaded containing that property/ function)
  * Link to referance used: https://stackoverflow.com/questions/29879267/es6-class-multiple-inheritance
- * @param {Object} baseClass - Base class to be extended with sub classes 
+ * @param {Object} baseClass - Base class to be extended with sub classes
  * @param  {...any} mixins - Classes to be added to the base class, (comma separated eg. uiClasses(BaseClass, ClassA, ClassB, ClassC))
- * @returns Base class 
+ * @returns Base class
  */
-function Classes (baseClass, ...mixins) {
+function Classes(baseClass, ...mixins) {
     class base extends baseClass {
-        constructor (...args) {
+        constructor(...args) {
             super(...args);
             mixins.forEach((mixin) => {
-                copyProps(this,(new mixin));
+                copyProps(this, new mixin());
             });
         }
     }
-    let copyProps = (target, source) => {  // this function copies all properties and symbols, filtering out some special ones
+    let copyProps = (target, source) => {
+        // this function copies all properties and symbols, filtering out some special ones
         Object.getOwnPropertyNames(source)
-                .concat(Object.getOwnPropertySymbols(source))
-                .forEach((prop) => {
-                    if (!prop.match(/^(?:constructor|prototype|arguments|caller|name|bind|call|apply|toString|length)$/))
-                    Object.defineProperty(target, prop, Object.getOwnPropertyDescriptor(source, prop));
-                })
-    }
-    mixins.forEach((mixin) => { // outside contructor() to allow aggregation(A,B,C).staticFunction() to be called etc.
+            .concat(Object.getOwnPropertySymbols(source))
+            .forEach((prop) => {
+                if (
+                    !prop.match(
+                        /^(?:constructor|prototype|arguments|caller|name|bind|call|apply|toString|length)$/
+                    )
+                )
+                    Object.defineProperty(
+                        target,
+                        prop,
+                        Object.getOwnPropertyDescriptor(source, prop)
+                    );
+            });
+    };
+    mixins.forEach((mixin) => {
+        // outside contructor() to allow aggregation(A,B,C).staticFunction() to be called etc.
         copyProps(base.prototype, mixin.prototype);
         copyProps(base, mixin);
     });
