@@ -101,7 +101,7 @@ class dm extends EventEmitter {
 
         // top level control emit
         if (scope == "top" || scope == "local_top") {
-            this._topLevelParent.emit(eventName, data, meta);
+            this._topLevelParent.emit(eventName, data, undefined, meta);
         }
     }
 
